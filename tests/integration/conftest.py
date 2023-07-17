@@ -638,3 +638,23 @@ def autostart_simulators(request: pytest.FixtureRequest) -> None:
     if services.get_service() is not WAZUH_MANAGER:
         authd.shutdown() if create_authd else None
         remoted.shutdown() if create_remoted else None
+
+
+@pytest.fixture(scope='module')
+def set_environment_variables(request: pytest.FixtureRequest) -> None:
+    """
+    Create environment variables
+    """
+    if hasattr(request.module, 'environment_variables'):
+        environment_variables = getattr(request.module, 'environment_variables')
+        for env, value in environment_variables:
+            if sys.platform == 'win32':
+                subprocess.call(['setx.exe', env, value, '/m'])
+            else:
+                os.putenv(env, value)
+
+    yield
+
+    if hasattr(request.module, 'environment_variables'):
+        for env in environment_variables:
+            os.environ.pop[env]
