@@ -6,13 +6,14 @@ import datetime
 import logging
 from typing import Union
 
-from aiohttp import web
+from connexion import request
 from connexion.lifecycle import ConnexionResponse
 
 import wazuh.manager as manager
 import wazuh.stats as stats
 from api.constants import INSTALLATION_UID_KEY, UPDATE_INFORMATION_KEY
 from api.encoder import dumps, prettify
+from api.controllers.util import json_response, XML_CONTENT_TYPE
 from api.models.base_model_ import Body
 from api.util import (
     deprecate_endpoint, deserialize_date, only_master_endpoint, parse_api_param, raise_if_exc, remove_nones_to_dict
@@ -27,12 +28,11 @@ from wazuh.core.results import AffectedItemsWazuhResult
 logger = logging.getLogger('wazuh-api')
 
 
-async def get_status(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_status(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's Wazuh daemons status
 
     Parameters
     ----------
-    request : connexion.request
     pretty : bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -40,7 +40,7 @@ async def get_status(request, pretty: bool = False, wait_for_complete: bool = Fa
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -51,19 +51,18 @@ async def get_status(request, pretty: bool = False, wait_for_complete: bool = Fa
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_info(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_info(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's basic information
 
     Parameters
     ----------
-    request : connexion.request
     pretty : bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -71,7 +70,7 @@ async def get_info(request, pretty: bool = False, wait_for_complete: bool = Fals
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -82,21 +81,20 @@ async def get_info(request, pretty: bool = False, wait_for_complete: bool = Fals
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_configuration(request, pretty: bool = False, wait_for_complete: bool = False, section: str = None,
+async def get_configuration(pretty: bool = False, wait_for_complete: bool = False, section: str = None,
                             field: str = None, raw: bool = False,
-                            distinct: bool = False) -> Union[web.Response, ConnexionResponse]:
+                            distinct: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's configuration (ossec.conf)
 
     Parameters
     ----------
-    request : connexion.request
     pretty : bool, optional
         Show results in human-readable format. It only works when `raw` is False (JSON format). Default `False`
     wait_for_complete : bool, optional
@@ -112,11 +110,11 @@ async def get_configuration(request, pretty: bool = False, wait_for_complete: bo
 
     Returns
     -------
-    web.Response or ConnexionResponse
-        Depending on the `raw` parameter, it will return a web.Response object or a ConnexionResponse object:
+    ConnexionResponse
+        Depending on the `raw` parameter, it will return a ConnexionResponse object:
             raw=True            -> ConnexionResponse (application/xml)
-            raw=False (default) -> web.Response (application/json)
-        If any exception was raised, it will return a web.Response with details.
+            raw=False (default) -> ConnexionResponse (application/json)
+        If any exception was raised, it will return a ConnexionResponse with details.
     """
     f_kwargs = {'section': section,
                 'field': field,
@@ -129,18 +127,19 @@ async def get_configuration(request, pretty: bool = False, wait_for_complete: bo
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
     if isinstance(data, AffectedItemsWazuhResult):
-        response = web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+        response = json_response(data, pretty=pretty)
     else:
-        response = ConnexionResponse(body=data["message"], mimetype='application/xml', content_type='application/xml')
+        response = ConnexionResponse(body=data["message"],
+                                     content_type=XML_CONTENT_TYPE)
     return response
 
 
-async def get_daemon_stats(request, pretty: bool = False, wait_for_complete: bool = False, daemons_list: list = None):
+async def get_daemon_stats(pretty: bool = False, wait_for_complete: bool = False, daemons_list: list = None):
     """Get Wazuh statistical information from the specified manager's daemons.
 
     Parameters
@@ -161,20 +160,19 @@ async def get_daemon_stats(request, pretty: bool = False, wait_for_complete: boo
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies'])
+                          rbac_permissions=request.context['token_info']['rbac_policies'])
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_stats(request, pretty: bool = False, wait_for_complete: bool = False, date: str = None) -> web.Response:
+async def get_stats(pretty: bool = False, wait_for_complete: bool = False, date: str = None) -> ConnexionResponse:
     """Get manager's or local_node's stats.
 
     Returns Wazuh statistical information for the current or specified date.
 
     Parameters
     ----------
-    request : connexion.request
     pretty : bool, optional
         Show results in human-readable format.
     wait_for_complete : bool, optional
@@ -184,7 +182,7 @@ async def get_stats(request, pretty: bool = False, wait_for_complete: bool = Fal
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     if not date:
@@ -200,14 +198,14 @@ async def get_stats(request, pretty: bool = False, wait_for_complete: bool = Fal
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_stats_hourly(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_stats_hourly(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's stats by hour.
 
     Returns Wazuh statistical information per hour. Each number in the averages field represents the average of alerts
@@ -215,7 +213,6 @@ async def get_stats_hourly(request, pretty: bool = False, wait_for_complete: boo
 
     Parameters
     ----------
-    request : connexion.request
     pretty : bool, optional
         Show results in human-readable format.
     wait_for_complete : bool, optional
@@ -223,7 +220,7 @@ async def get_stats_hourly(request, pretty: bool = False, wait_for_complete: boo
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -234,14 +231,14 @@ async def get_stats_hourly(request, pretty: bool = False, wait_for_complete: boo
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_stats_weekly(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_stats_weekly(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's stats by week.
 
     Returns Wazuh statistical information per week. Each number in the averages field represents the average of alerts
@@ -249,7 +246,6 @@ async def get_stats_weekly(request, pretty: bool = False, wait_for_complete: boo
 
     Parameters
     ----------
-    request : connexion.request
     pretty : bool, optional
         Show results in human-readable format.
     wait_for_complete : bool, optional
@@ -257,7 +253,7 @@ async def get_stats_weekly(request, pretty: bool = False, wait_for_complete: boo
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -268,15 +264,15 @@ async def get_stats_weekly(request, pretty: bool = False, wait_for_complete: boo
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
 @deprecate_endpoint()
-async def get_stats_analysisd(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_stats_analysisd(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's analysisd statistics.
 
     Notes
@@ -292,7 +288,7 @@ async def get_stats_analysisd(request, pretty: bool = False, wait_for_complete: 
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
     """
     f_kwargs = {'filename': common.ANALYSISD_STATS}
 
@@ -302,15 +298,15 @@ async def get_stats_analysisd(request, pretty: bool = False, wait_for_complete: 
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
 @deprecate_endpoint()
-async def get_stats_remoted(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_stats_remoted(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's remoted statistics.
 
     Notes
@@ -326,7 +322,7 @@ async def get_stats_remoted(request, pretty: bool = False, wait_for_complete: bo
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
     """
     f_kwargs = {'filename': common.REMOTED_STATS}
 
@@ -336,21 +332,20 @@ async def get_stats_remoted(request, pretty: bool = False, wait_for_complete: bo
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_log(request, pretty: bool = False, wait_for_complete: bool = False, offset: int = 0, limit: int = None,
+async def get_log(pretty: bool = False, wait_for_complete: bool = False, offset: int = 0, limit: int = None,
                   sort: str = None, search: str = None, tag: str = None, level: str = None,
-                  q: str = None, select: str = None, distinct: bool = False) -> web.Response:
+                  q: str = None, select: str = None, distinct: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's last 2000 wazuh log entries.
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -377,7 +372,7 @@ async def get_log(request, pretty: bool = False, wait_for_complete: bool = False
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {'offset': offset,
@@ -398,19 +393,18 @@ async def get_log(request, pretty: bool = False, wait_for_complete: bool = False
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_log_summary(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_log_summary(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get manager's or local_node's summary of the last 2000 wazuh log entries.
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -418,7 +412,7 @@ async def get_log_summary(request, pretty: bool = False, wait_for_complete: bool
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -429,19 +423,18 @@ async def get_log_summary(request, pretty: bool = False, wait_for_complete: bool
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_api_config(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_api_config(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Get active API configuration in manager or local_node.
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -449,7 +442,7 @@ async def get_api_config(request, pretty: bool = False, wait_for_complete: bool 
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -460,19 +453,18 @@ async def get_api_config(request, pretty: bool = False, wait_for_complete: bool 
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def put_restart(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def put_restart(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Restart manager or local_node.
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -480,7 +472,7 @@ async def put_restart(request, pretty: bool = False, wait_for_complete: bool = F
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -491,19 +483,18 @@ async def put_restart(request, pretty: bool = False, wait_for_complete: bool = F
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_conf_validation(request, pretty: bool = False, wait_for_complete: bool = False) -> web.Response:
+async def get_conf_validation(pretty: bool = False, wait_for_complete: bool = False) -> ConnexionResponse:
     """Check if Wazuh configuration is correct in manager or local_node.
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -511,7 +502,7 @@ async def get_conf_validation(request, pretty: bool = False, wait_for_complete: 
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {}
@@ -522,20 +513,19 @@ async def get_conf_validation(request, pretty: bool = False, wait_for_complete: 
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def get_manager_config_ondemand(request, component: str, pretty: bool = False, wait_for_complete: bool = False,
-                                      **kwargs: dict) -> web.Response:
+async def get_manager_config_ondemand(component: str, pretty: bool = False, wait_for_complete: bool = False,
+                                      **kwargs: dict) -> ConnexionResponse:
     """Get active configuration in manager or local_node for one component [on demand].
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -545,7 +535,7 @@ async def get_manager_config_ondemand(request, component: str, pretty: bool = Fa
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     f_kwargs = {'component': component,
@@ -560,20 +550,19 @@ async def get_manager_config_ondemand(request, component: str, pretty: bool = Fa
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
 
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
-async def update_configuration(request, body: bytes, pretty: bool = False,
-                               wait_for_complete: bool = False) -> web.Response:
+async def update_configuration(body: bytes, pretty: bool = False,
+                               wait_for_complete: bool = False) -> ConnexionResponse:
     """Update manager's or local_node's configuration (ossec.conf).
 
     Parameters
     ----------
-    request : connexion.request
     pretty: bool
         Show results in human-readable format.
     wait_for_complete : bool
@@ -583,7 +572,7 @@ async def update_configuration(request, body: bytes, pretty: bool = False,
 
     Returns
     -------
-    web.Response
+    ConnexionResponse
         API response.
     """
     # Parse body to utf-8
@@ -598,11 +587,10 @@ async def update_configuration(request, body: bytes, pretty: bool = False,
                           is_async=False,
                           wait_for_complete=wait_for_complete,
                           logger=logger,
-                          rbac_permissions=request['token_info']['rbac_policies']
+                          rbac_permissions=request.context['token_info']['rbac_policies']
                           )
     data = raise_if_exc(await dapi.distribute_function())
-
-    return web.json_response(data=data, status=200, dumps=prettify if pretty else dumps)
+    return json_response(data, pretty=pretty)
 
 
 @only_master_endpoint
