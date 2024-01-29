@@ -18,7 +18,7 @@ ERROR_CONTENT_TYPE="application/problem+json; charset=utf-8"
 
 
 def prevent_bruteforce_attack(request: ConnexionRequest, attempts: int = 5):
-    """Checks that the IPs that are requesting an API token do not do so repeatedly.
+    """Check that the IPs that are requesting an API token do not do so repeatedly.
 
     Parameters
     ----------
@@ -66,7 +66,7 @@ async def unauthorized_error_handler(request: ConnexionRequest,
     ----------
     request : ConnexionRequest
         Incomming request.
-    exc: Unauthorized
+    exc : Unauthorized
         Raised exception.
 
     Returns
@@ -101,10 +101,10 @@ async def bad_request_error_handler(_: ConnexionRequest,
     
     Parameters
     ----------
-    _: ConnexionRequest
+    _ : ConnexionRequest
         Incomming request.
         Unnamed parameter not used.
-    exc: BadRequestProblem
+    exc : BadRequestProblem
         Raised exception.
 
     Returns
@@ -132,7 +132,7 @@ async def http_error_handler(_: ConnexionRequest,
     _ : ConnexionRequest
         Incomming request.
         Unnamed parameter not used.
-    exc: HTTPException
+    exc : HTTPException
         Raised exception.
 
     Returns
@@ -158,7 +158,7 @@ async def jwt_error_handler(_: ConnexionRequest, __: JWTError) -> ConnexionRespo
     _ : ConnexionRequest
         Incomming request.
         Unnamed parameter not used.
-    __: JWTError
+    __ : JWTError
         Raised exception.
         Unnamed parameter not used.
 
@@ -183,10 +183,10 @@ async def problem_error_handler(_: ConnexionRequest,
     
     Parameters
     ----------
-    request: ConnexionRequest
+    _ : ConnexionRequest
         Incomming request.
         Unnamed parameter not used.
-    exc: ProblemException
+    exc : ProblemException
         Raised exception.
 
     Returns
@@ -223,7 +223,7 @@ async def content_size_handler(_: ConnexionRequest, exc: ContentSizeExceeded) ->
     _ : ConnexionRequest
         Incomming request.
         Unnamed parameter not used.
-    exc: ContentSizeExceeded
+    exc : ContentSizeExceeded
         Raised exception.
 
     Returns

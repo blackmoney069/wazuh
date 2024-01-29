@@ -223,7 +223,6 @@ async def lifespan_handler(_: ConnexionMiddleware):
     """Logs the API startup and shutdown messages."""
 
     # Log the initial server startup message.
-    msg = f'Listening on {configuration.api_conf["host"]}:{configuration.api_conf["port"]}.'
-    start_stop_logger.info(msg)
+    start_stop_logger.info(f'Listening on {configuration.api_conf["host"]}:{configuration.api_conf["port"]}.')
     yield
     start_stop_logger.info('Shutdown wazuh-apid server.')

@@ -7,8 +7,9 @@
 import argparse
 import os
 import signal
-import warnings
 import sys
+import warnings
+
 import asyncio
 import logging
 import logging.config
@@ -78,14 +79,13 @@ def spawn_authentication_pool():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
-def assign_wazuh_ownership(filepath:str):
+def assign_wazuh_ownership(filepath: str):
     """Create a file if it doesn't exist and assign ownership.
 
     Parameters
     ----------
     filepath : str
         File to assign ownership.
-
     """
     if not os.path.isfile(filepath):
         f = open(filepath, "w")
@@ -102,7 +102,6 @@ def configure_ssl(params):
     ----------
     uvicorn_params : dict
         uvicorn parameter configuration dictionary.
-
     """
     try:
         # Generate SSL if it does not exist and HTTPS is enabled
@@ -175,13 +174,13 @@ def configure_ssl(params):
             raise exc from exc
 
 
-def start(params):
+def start(params: dict):
     """Run the Wazuh API.
 
     If another Wazuh API is running, this function will fail because uvicorn server will
     not be able to create server processes in the same port.
     The function creates the pool processes, the AsyncApp instance, setups the API spec.yaml, 
-    the middleware classes, the error_handlers, the lifepan, and runs the uvicorn ASGI server.
+    the middleware classes, the error_handlers, the lifespan, and runs the uvicorn ASGI server.
 
     Parameters
     ----------
@@ -191,8 +190,7 @@ def start(params):
     try:
         check_database_integrity()
     except Exception as db_integrity_exc:
-        raise APIError(2012, details=str(
-            db_integrity_exc)) from db_integrity_exc
+        raise APIError(2012, details=str(db_integrity_exc)) from db_integrity_exc
 
     # Spawn child processes with their own needed imports
     if 'thread_pool' not in common.mp_pools.get():
@@ -226,7 +224,7 @@ def start(params):
     if api_conf['max_upload_size']:
         app.add_middleware(ContentSizeLimitMiddleware, max_content_size=api_conf['max_upload_size'])
         app.add_error_handler(ContentSizeExceeded, error_handler.content_size_handler)
-        
+
     app.add_middleware(SecureHeadersMiddleware)
     app.add_middleware(CheckRateLimitsMiddleware)
 
@@ -327,8 +325,10 @@ def add_debug2_log_level_and_error():
 
 def set_logging(log_filepath=f'{API_LOG_PATH}', log_level='INFO',
                            foreground_mode=False) -> dict():
-    """Creates a logging configuration dictionary, configure the wazuh-api logger and
-    returns the logging configuration dictionary that will be used in uvicorn logging
+    """Set up logging for API.
+    
+    This function creates a logging configuration dictionary, configure the wazuh-api logger
+    and returns the logging configuration dictionary that will be used in uvicorn logging
     configuration.
     
     Parameters
@@ -343,7 +343,7 @@ def set_logging(log_filepath=f'{API_LOG_PATH}', log_level='INFO',
 
     Returns
     -------
-    dict
+    log_config_dict : dict
         Logging configuraction dictionary.
     """
     handlers = {
@@ -393,7 +393,7 @@ def set_logging(log_filepath=f'{API_LOG_PATH}', log_level='INFO',
             "json" : {
                 '()': 'api.alogging.WazuhJsonFormatter',
                 'style': '%',
-                'datefmt' : "%Y/%m/%d %H:%M:%S"
+                'datefmt': "%Y/%m/%d %H:%M:%S"
             }
         },
         "filters": {
@@ -421,8 +421,8 @@ def set_logging(log_filepath=f'{API_LOG_PATH}', log_level='INFO',
             },
         },
         "loggers": {
-            "wazuh-api" : {"handlers": hdls, "level": log_level, "propagate": False},
-            "start-stop-api" : {"handlers": hdls, "level": 'INFO', "propagate": False}
+            "wazuh-api": {"handlers": hdls, "level": log_level, "propagate": False},
+            "start-stop-api": {"handlers": hdls, "level": 'INFO', "propagate": False}
         }
     }
 
@@ -432,14 +432,14 @@ def set_logging(log_filepath=f'{API_LOG_PATH}', log_level='INFO',
             if api_conf['logs']['max_size']['enabled']:
                 max_size = APILoggerSize(api_conf['logs']['max_size']['size']).size
                 d.update({
-                    'class': 'wazuh.core.wlogging.SizeBasedFileRotatingHandler',
-                    'maxBytes' : max_size,
-                    'backupCount' : 1
+                    'class':'wazuh.core.wlogging.SizeBasedFileRotatingHandler',
+                    'maxBytes': max_size,
+                    'backupCount': 1
                 })
             else:
                 d.update({
-                    'class' : 'wazuh.core.wlogging.TimeBasedFileRotatingHandler',
-                    'when' : 'midnight'
+                    'class': 'wazuh.core.wlogging.TimeBasedFileRotatingHandler',
+                    'when': 'midnight'
                 })
             log_config_dict['handlers'][handler] = d
 
@@ -495,7 +495,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Configure uvicorn parameters dictionary
-    uvicorn_params = dict()
+    uvicorn_params = {}
     uvicorn_params['host'] = api_conf['host']
     uvicorn_params['port'] = api_conf['port']
     uvicorn_params['loop'] = 'uvloop'
