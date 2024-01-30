@@ -191,9 +191,8 @@ def start(params: dict):
 
     # Maximum body size that the API can accept (bytes)
     app.add_middleware(WazuhAccessLoggerMiddleware, MiddlewarePosition.BEFORE_VALIDATION)
-    if api_conf['max_upload_size']:
-        app.add_middleware(ContentSizeLimitMiddleware, max_content_size=api_conf['max_upload_size'])
-        app.add_error_handler(ContentSizeExceeded, error_handler.content_size_handler)
+    app.add_middleware(ContentSizeLimitMiddleware, max_content_size=api_conf['max_upload_size'])
+    app.add_error_handler(ContentSizeExceeded, error_handler.content_size_handler)
 
     app.add_middleware(SecureHeadersMiddleware)
     app.add_middleware(CheckRateLimitsMiddleware)
