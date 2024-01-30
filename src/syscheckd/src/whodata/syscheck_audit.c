@@ -58,6 +58,41 @@ typedef struct _audit_data_s {
  */
 static void *audit_main(audit_data_t *audit_data);
 
+int audit_check_lock_output(void) {
+    int retval;
+    int audit_handler;
+
+    int flags = AUDIT_FILTER_TASK;
+
+    audit_handler = audit_open();
+    if (audit_handler < 0) {
+        return (-1);
+    }
+
+    struct audit_rule_data *myrule = NULL;
+    myrule = malloc(sizeof(struct audit_rule_data));
+    memset(myrule, 0, sizeof(struct audit_rule_data));
+
+    retval = audit_add_rule_data(audit_handler, myrule, flags, AUDIT_NEVER);
+
+    if (retval == -17) {
+        audit_rule_free_data(myrule);
+        audit_close(audit_handler);
+        return 1;
+    } else {
+        // Delete if it was inserted
+        retval = audit_delete_rule_data(audit_handler, myrule, flags, AUDIT_NEVER);
+        audit_rule_free_data(myrule);
+        audit_close(audit_handler);
+        if (retval < 0) {
+            mdebug2("audit_delete_rule_data = (%i) %s", retval, audit_errno_to_name(abs(retval)));
+            merror("Error removing test rule. Audit output is blocked.");
+            return 1;
+        }
+        return 0;
+    }
+}
+
 int check_auditd_enabled(void) {
     PROCTAB *proc = openproc(PROC_FILLSTAT | PROC_FILLSTATUS | PROC_FILLCOM );
     proc_t *proc_info;
@@ -350,6 +385,16 @@ int audit_init(void) {
     if (audit_data.socket < 0) {
         merror("Can't init auditd socket in 'init_auditd_socket()'");
         return -1;
+    }
+
+    // Check if there's a blockig rule
+    if (audit_check_lock_output()) {
+        mwarn("Audit rule '-a never,task' is blocking the audit output. Whodata cannot start.");
+        // Send alert
+        char msg_alert[512 + 1];
+        snprintf(msg_alert, 512, "ossec: Audit: Rule is blocking the audit output: Whodata cannot start");
+        SendMSG(syscheck.queue, msg_alert, "syscheck", LOCALFILE_MQ);
+        return (-1);
     }
 
     int regex_comp = init_regex();
