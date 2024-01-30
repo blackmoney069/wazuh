@@ -21,7 +21,8 @@ from wazuh.core.exception import WazuhPermissionError, WazuhTooManyRequests
 from wazuh.core.utils import get_utc_now
 
 from api import configuration
-from api.util import raise_if_exc, custom_logging
+from api.util import raise_if_exc
+from api.alogging import custom_logging
 
 # Default of the max event requests allowed per minute
 MAX_REQUESTS_EVENTS_DEFAULT = 30
