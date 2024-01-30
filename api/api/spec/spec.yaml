@@ -641,6 +641,26 @@ components:
               unknown-node:
                 error: "The group does not exist"
 
+    InvalidUriResponse:
+      description: "Uri not found"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            title: "Not Found"
+            detail: "404: Not Found"
+
+    UnsupportedMediaTypeResponse:
+      description: "Unsupported media type"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            title: "Unsupported media type"
+            detail: "Invalid Content-type (application/json), expected ['application/octet-stream']"
+
   schemas:
     ## Common models
     ApiResponse:
@@ -11576,6 +11596,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'          
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '429':
@@ -11626,6 +11648,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'          
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '413':
@@ -11669,6 +11693,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse' 
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '429':
@@ -12080,6 +12106,8 @@ paths:
           $ref: '#/components/responses/WrongContentTypeResponse'
         '413':
           $ref: '#/components/responses/RequestTooLargeResponse'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeResponse'
         '429':
           $ref: '#/components/responses/TooManyRequestsResponse'
 
@@ -14348,6 +14376,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '429':
@@ -14403,6 +14433,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '406':
@@ -14451,6 +14483,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '429':
@@ -15130,6 +15164,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '429':
@@ -15184,6 +15220,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '406':
@@ -15232,6 +15270,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedResponse'
         '403':
           $ref: '#/components/responses/PermissionDeniedResponse'
+        '404':
+          $ref: '#/components/responses/InvalidUriResponse'
         '405':
           $ref: '#/components/responses/InvalidHTTPMethodResponse'
         '429':
