@@ -294,141 +294,6 @@ def add_debug2_log_level_and_error():
     logging.Logger.error = error
 
 
-def set_logging(log_filepath, log_level='INFO', foreground_mode=False) -> dict:
-    """Set up logging for API.
-    
-    This function creates a logging configuration dictionary, configure the wazuh-api logger
-    and returns the logging configuration dictionary that will be used in uvicorn logging
-    configuration.
-    
-    Parameters
-    ----------
-    log_path : str
-        Log file path.
-    log_level :  str
-        Logger Log level.
-    foreground_mode: bool
-        Log output to console streams when true
-        else Log output to file.
-
-    Returns
-    -------
-    log_config_dict : dict
-        Logging configuraction dictionary.
-    """
-    handlers = {
-        'plainfile': None, 
-        'jsonfile': None,
-    }
-    if foreground_mode:
-        handlers.update({'console': {}})
-    else:
-        if 'json' in api_conf['logs']['format']:
-            handlers["jsonfile"] = {
-                'filename': f"{log_filepath}.json",
-                'formatter': 'json',
-                'filters': ['json-filter'],
-            }
-        if 'plain' in api_conf['logs']['format']:
-            handlers["plainfile"] = {
-                'filename': f"{log_filepath}.log",
-                'formatter': 'log',
-                'filters': ['plain-filter'],
-            }
-
-    hdls = [k for k, v in handlers.items() if isinstance(v, dict)]
-    if not hdls:
-        print(f"Configuration error in the API log format: {api_conf['logs']['format']}.")
-        sys.exit(1)
-
-    log_config_dict = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(message)s",
-                "use_colors": None,
-            },
-            "access": {
-                "()": "uvicorn.logging.AccessFormatter",
-                "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
-            },
-            "log": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(asctime)s %(levelname)s: %(message)s",
-                "datefmt": "%Y-%m-%d %H:%M:%S",
-                "use_colors": None,
-            },
-            "json" : {
-                '()': 'api.alogging.WazuhJsonFormatter',
-                'style': '%',
-                'datefmt': "%Y/%m/%d %H:%M:%S"
-            }
-        },
-        "filters": {
-            'plain-filter': {'()': 'wazuh.core.wlogging.CustomFilter',
-                             'log_type': 'log' },
-            'json-filter': {'()': 'wazuh.core.wlogging.CustomFilter',
-                             'log_type': 'json' }
-        },
-        "handlers": {
-            "default": {
-                "formatter": "default",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stderr",
-            },
-            "access": {
-                "formatter": "access",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stdout"
-            },
-            "console": {
-                'formatter': 'log',
-                'class': 'logging.StreamHandler',
-                'stream': 'ext://sys.stdout',
-                'filters': ['plain-filter']
-            },
-        },
-        "loggers": {
-            "wazuh-api": {"handlers": hdls, "level": log_level, "propagate": False},
-            "start-stop-api": {"handlers": hdls, "level": 'INFO', "propagate": False}
-        }
-    }
-
-    # configure file handlers
-    for handler, d in handlers.items():
-        if d and 'filename' in d:
-            if api_conf['logs']['max_size']['enabled']:
-                max_size = APILoggerSize(api_conf['logs']['max_size']['size']).size
-                d.update({
-                    'class':'wazuh.core.wlogging.SizeBasedFileRotatingHandler',
-                    'maxBytes': max_size,
-                    'backupCount': 1
-                })
-            else:
-                d.update({
-                    'class': 'wazuh.core.wlogging.TimeBasedFileRotatingHandler',
-                    'when': 'midnight'
-                })
-            log_config_dict['handlers'][handler] = d
-
-            # set permission on log files
-            assign_wazuh_ownership(d['filename'])
-            os.chmod(d['filename'], 0o660)
-
-    # Configure and create the wazuh-api logger first
-    logging.config.dictConfig(log_config_dict)
-    add_debug2_log_level_and_error()
-
-    # Configure the uvicorn loggers. They will be created by the uvicorn server.
-    log_config_dict['loggers']['uvicorn'] = {"handlers": hdls, "level": 'WARNING', "propagate": False}
-    log_config_dict['loggers']['uvicorn.error'] = {"handlers": hdls, "level": 'WARNING', "propagate": False}
-    log_config_dict['loggers']['uvicorn.access'] = {'level': 'WARNING'}
-
-    return log_config_dict
-
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -481,9 +346,10 @@ if __name__ == '__main__':
         generate_self_signed_certificate
     from api.middlewares import SecureHeadersMiddleware, CheckRateLimitsMiddleware, \
         WazuhAccessLoggerMiddleware, lifespan_handler
-    from api.util import APILoggerSize, to_relative_path
+    from api.util import to_relative_path
     from api.uri_parser import APIUriParser
     from api.constants import API_LOG_PATH
+    from api.alogging import set_logging
 
     from wazuh.rbac.orm import check_database_integrity
     from wazuh.core import pyDaemonModule, common, utils
@@ -502,9 +368,23 @@ if __name__ == '__main__':
     uvicorn_params['loop'] = 'uvloop'
 
     # Set up logger file
-    uvicorn_params['log_config'] = set_logging(log_filepath=API_LOG_PATH,
-                                               log_level=api_conf['logs']['level'].upper(),
-                                               foreground_mode=args.foreground)
+    try:
+        uvicorn_params['log_config'] = set_logging(log_filepath=API_LOG_PATH,
+                                                log_level=api_conf['logs']['level'].upper(),
+                                                foreground_mode=args.foreground)
+    except APIError as e:
+        print(f"Configuration error in the API log format: {api_conf['logs']['format']}.")
+        sys.exit(1)
+
+    # set permission on log files
+    for handler in uvicorn_params['log_config']['handlers'].values():
+        if 'filename' in handler:
+            assign_wazuh_ownership(handler['filename'])
+            os.chmod(handler['filename'], 0o660)
+
+    # Configure and create the wazuh-api logger
+    logging.config.dictConfig(uvicorn_params['log_config'])
+    add_debug2_log_level_and_error()
     logger = logging.getLogger('wazuh-api')
 
     # Check deprecated options. To delete after expected versions
