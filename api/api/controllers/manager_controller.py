@@ -6,6 +6,7 @@ import datetime
 import logging
 from typing import Union
 
+from aiohttp import web
 from connexion import request
 from connexion.lifecycle import ConnexionResponse
 

@@ -10,38 +10,6 @@ import signal
 import sys
 import warnings
 
-import asyncio
-import logging
-import logging.config
-import ssl
-import uvicorn
-
-from connexion import AsyncApp
-from connexion.options import SwaggerUIOptions
-from connexion.exceptions import Unauthorized, HTTPException, BadRequestProblem, ProblemException
-from connexion.middleware import MiddlewarePosition
-
-from starlette.middleware.cors import CORSMiddleware
-
-from content_size_limit_asgi import ContentSizeLimitMiddleware
-from content_size_limit_asgi.errors import ContentSizeExceeded
-
-from jose import JWTError
-
-from api import error_handler, __path__ as api_path
-from api.constants import API_LOG_PATH, CONFIG_FILE_PATH
-from api.api_exception import APIError
-from api.configuration import api_conf, read_yaml_config, security_conf, generate_private_key, \
-    generate_self_signed_certificate
-from api.middlewares import SecureHeadersMiddleware, CheckRateLimitsMiddleware, \
-    WazuhAccessLoggerMiddleware, lifespan_handler
-from api.util import APILoggerSize, to_relative_path
-from api.uri_parser import APIUriParser
-
-from wazuh.rbac.orm import check_database_integrity
-from wazuh.core import pyDaemonModule, common, utils
-from wazuh.core.cluster import __version__, __author__, __wazuh_name__, __licence__
-
 SSL_DEPRECATED_MESSAGE = 'The `{ssl_protocol}` SSL protocol is deprecated.'
 
 API_MAIN_PROCESS = 'wazuh-apid'
@@ -103,6 +71,8 @@ def configure_ssl(params):
     uvicorn_params : dict
         uvicorn parameter configuration dictionary.
     """
+    from api.constants import  CONFIG_FILE_PATH
+
     try:
         # Generate SSL if it does not exist and HTTPS is enabled
         if not os.path.exists(api_conf['https']['key']) \
@@ -270,6 +240,7 @@ def start(params: dict):
 
 
 def print_version():
+    from wazuh.core.cluster import __version__, __author__, __wazuh_name__, __licence__
     print('\n{} {} - {}\n\n{}'.format(__wazuh_name__, __version__, __author__, __licence__))
 
 
@@ -323,8 +294,7 @@ def add_debug2_log_level_and_error():
     logging.Logger.error = error
 
 
-def set_logging(log_filepath=f'{API_LOG_PATH}', log_level='INFO',
-                           foreground_mode=False) -> dict():
+def set_logging(log_filepath, log_level='INFO', foreground_mode=False) -> dict:
     """Set up logging for API.
     
     This function creates a logging configuration dictionary, configure the wazuh-api logger
@@ -478,6 +448,7 @@ if __name__ == '__main__':
                         dest='debug_level')
     args = parser.parse_args()
 
+    from api.configuration import read_yaml_config
     if args.version:
         version()
         sys.exit(0)
@@ -486,10 +457,40 @@ if __name__ == '__main__':
         test_config(args.config_file)
         sys.exit(0)
 
+    import asyncio
+    import logging
+    import logging.config
+    import ssl
+    import uvicorn
+
+    from connexion import AsyncApp
+    from connexion.options import SwaggerUIOptions
+    from connexion.exceptions import Unauthorized, HTTPException, BadRequestProblem, ProblemException
+    from connexion.middleware import MiddlewarePosition
+
+    from starlette.middleware.cors import CORSMiddleware
+
+    from content_size_limit_asgi import ContentSizeLimitMiddleware
+    from content_size_limit_asgi.errors import ContentSizeExceeded
+
+    from jose import JWTError
+
+    from api import error_handler, __path__ as api_path
+    from api.api_exception import APIError
+    from api.configuration import api_conf, security_conf, generate_private_key, \
+        generate_self_signed_certificate
+    from api.middlewares import SecureHeadersMiddleware, CheckRateLimitsMiddleware, \
+        WazuhAccessLoggerMiddleware, lifespan_handler
+    from api.util import APILoggerSize, to_relative_path
+    from api.uri_parser import APIUriParser
+    from api.constants import API_LOG_PATH
+
+    from wazuh.rbac.orm import check_database_integrity
+    from wazuh.core import pyDaemonModule, common, utils
+
     try:
         if args.config_file is not None:
-            api_conf.update(read_yaml_config(
-                config_file=args.config_file))
+            api_conf.update(read_yaml_config(config_file=args.config_file))
     except APIError as e:
         print(f"Error when trying to start the Wazuh API. {e}")
         sys.exit(1)
