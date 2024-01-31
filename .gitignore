@@ -132,7 +132,6 @@ src/shared_modules/utils/tests/coverage_report
 src/wazuh_modules/syscollector/coverage_report/
 src/ossec.test
 src/tap_*
-etc/preloaded-vars.conf
 
 # unit tests
 src/unit_tests/build/*
