@@ -98,17 +98,18 @@ def set_logging(log_filepath, log_level='INFO', foreground_mode=False) -> dict:
         Log file path.
     log_level :  str
         Logger Log level.
-    foreground_mode: bool
+    foreground_mode : bool
         Log output to console streams when true
         else Log output to file.
 
     Raise
     -----
-    
+    ApiError
+
     Returns
     -------
     log_config_dict : dict
-        Logging configuraction dictionary.
+        Logging configuration dictionary.
     """
     handlers = {
         'plainfile': None, 

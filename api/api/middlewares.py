@@ -80,7 +80,7 @@ def check_rate_limit(
     current_time_key: str,
     max_requests: int
 ) -> None:
-    """Checks that the maximum number of requests per minute
+    """Check that the maximum number of requests per minute
     passed in `max_requests` is not exceeded.
 
     Parameters
@@ -120,7 +120,7 @@ class CheckRateLimitsMiddleware(BaseHTTPMiddleware):
     """Rate Limits Middleware."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        """"Checks request limits per minute"""
+        """"Check request limits per minute"""
         access_conf = configuration.api_conf['access']
         max_request_per_minute = access_conf['max_request_per_minute']
 
@@ -148,7 +148,7 @@ class WazuhAccessLoggerMiddleware(BaseHTTPMiddleware):
     """Middleware to log custom Access messages."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        """Logs Wazuh access information.
+        """Log Wazuh access information.
 
         Parameters
         ----------
@@ -200,7 +200,7 @@ class SecureHeadersMiddleware(BaseHTTPMiddleware):
     """Secure headers Middleware."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        """Checks and modifies the response headers with secure package.
+        """Check and modifies the response headers with secure package.
         
         Parameters
         ----------
